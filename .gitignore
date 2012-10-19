@@ -4,3 +4,11 @@ priv
 *.o
 *.beam
 *.plt
+
+
+*.iml
+.DS_Store
+.idea
+doc
+ebin
+
