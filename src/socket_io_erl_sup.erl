@@ -1,4 +1,3 @@
-
 -module(socket_io_erl_sup).
 
 -behaviour(supervisor).
@@ -17,12 +16,17 @@
 %% ===================================================================
 
 start_link() ->
-    supervisor:start_link({local, ?MODULE}, ?MODULE, []).
+  supervisor:start_link({local, ?MODULE}, ?MODULE, []).
 
 %% ===================================================================
 %% Supervisor callbacks
 %% ===================================================================
 
 init([]) ->
-    {ok, { {one_for_one, 5, 10}, []} }.
+  ConnectionSupervisor = {
+    socket_io_erl_connection_sup,
+    {socket_io_erl_connection_sup, start_link, []},
+    permanent, 5000, supervisor, []
+  },
+  {ok, {{one_for_one, 5, 10}, [ConnectionSupervisor]}}.
 

@@ -9,10 +9,19 @@
 -define(SOCKET_IO_MSG_ERROR, <<"7">>).
 -define(SOCKET_IO_MSG_NOOP, <<"8">>).
 
-%% Holding parsed socket.io message
+%% @doc Holding parsed socket.io message
 -record(socket_io_msg, {
   type,
   id,
   endpoint,
   data
+}).
+
+
+%% @doc describes handler
+-record(socket_io_handler, {
+  sessionId,
+  type,
+  module,
+  ref
 }).
