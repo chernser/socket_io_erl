@@ -6,7 +6,7 @@
 -author("chernser@outlook.com").
 
 %% @headerfile "socket_io_erl.hrl"
--include("socket_io_erl.hrl").
+-include("../include/socket_io_erl.hrl").
 
 %% API
 -export([
@@ -24,7 +24,10 @@
 decode(Msg) when is_list(Msg) ->
   decode(list_to_binary(Msg));
 decode(Msg) when is_binary(Msg) ->
-  Parts = re:split(Msg, <<":">>, [{return, binary}]),
+  Parts = [ (case Part of
+              <<>> -> undefined;
+              _ -> Part
+             end) || Part <- re:split(Msg, <<":">>, [{return, binary}])],
   parse(Parts).
 
 
@@ -79,6 +82,8 @@ getEventArgs(_) ->
 
 %% @doc Parses list of message parts into record
 -spec parse([binary()]) -> #socket_io_msg{}.
+parse([Type]) ->
+  #socket_io_msg{type = Type};
 parse([Type, Id, Endpoint]) ->
   #socket_io_msg{type = Type, id = Id, endpoint = Endpoint};
 parse([Type, Id, Endpoint, Data]) ->
