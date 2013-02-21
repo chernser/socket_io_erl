@@ -1,3 +1,6 @@
+%%  Copyright (c) Sergey Chernov <chernser@outlook.com>
+%%  All rights reserved.
+
 %% @doc
 %%   Provides functions for encoding/decoding socket.io protocol messages
 %% @end

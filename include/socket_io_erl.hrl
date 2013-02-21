@@ -1,3 +1,5 @@
+%% Copyright (c) 2013, Sergey Chernov <chernser@outlook.com>
+%% All rights reserved.
 
 %% Message types accordint to https://github.com/LearnBoost/socket.io-spec
 -define(SOCKET_IO_MSG_CONNECT, <<"1">>).

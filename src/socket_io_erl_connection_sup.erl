@@ -1,4 +1,5 @@
-%% Copyright
+%%  Copyright (c) Sergey Chernov <chernser@outlook.com>
+%%  All rights reserved.
 -module(socket_io_erl_connection_sup).
 -author("chernser").
 
