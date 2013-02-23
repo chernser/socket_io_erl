@@ -151,10 +151,8 @@ disconnected(_Event, State) ->
 
 connected(check_handler, State0) ->
   %% Request handler check
-
   Handler = State0#state.handler,
   HandlerModule = Handler#socket_io_handler.module,
-  erlang:display("send check to handler"),erlang:display(Handler),
   ok = erlang:apply(HandlerModule, check, [Handler]),
   {next_state, handler_check, State0, ?HANDLER_CHECK_TIMEOUT};
 connected({send, Msg}, State0) ->
@@ -178,14 +176,15 @@ handler_check(timeout, State0) ->
 handler_check(check_ok, State0) ->
   %% Send accumulated messages and go to connected state
   gen_fsm:send_event_after(?HANDLER_CHECK_INTERVAL, check_handler),
-  {next_state, connected, State0};
+  {ok, State} = send_to_handler(State0),
+  {next_state, connected, State};
 handler_check({send, Msg}, State0) ->
   %% Accumulate messages to send in future
   Messages = State0#state.messages ++ [Msg],
   State1 = State0#state{messages = Messages},
   {next_state, handler_check, State1, ?HANDLER_CHECK_TIMEOUT};
-handler_check(_Event, State) ->
-  {next_state, handler_check, State}.
+handler_check(Event, _) ->
+  erlang:exit({unsupported, Event}).
 
 handle_event(_Event, StateName, State) ->
   {next_state, StateName, State}.
@@ -211,7 +210,7 @@ code_change(_OldVsn, StateName, State, _Extra) ->
 %%% Internal Functions
 %%%============================================================================
 
-%% @hidden
+%% @doc detaches handler from connection
 -spec detach_handler(State0 :: #state{}) -> #state{}.
 detach_handler(State0 = #state{}) ->
   gen_fsm:cancel_timer(State0#state.handlerCheckTimer),
@@ -222,3 +221,14 @@ detach_handler(State0 = #state{}) ->
                         handler = undefined,
                         handlerCheckTimer = undefined},
   State1.
+
+-spec send_to_handler(State::#state{}) ->
+    {ok, NewState::#state{}} | no_handler.
+send_to_handler(#state{handler = undefined}) ->
+  no_handler;
+send_to_handler(State0 = #state{handler = Handler, messages = Messages}) ->
+  HandlerModule = Handler#socket_io_handler.module,
+  SessionId = Handler#socket_io_handler.sessionId,
+  HandlerModule:send(SessionId, Messages),
+  State = State0#state{messages = []},
+  {ok, State}.

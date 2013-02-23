@@ -42,7 +42,8 @@ cleanup({PidsToKill, _}) ->
 all_test_() ->
   {foreach, fun setup/0, fun cleanup/1,
     [?_test2(test_setting_handler),
-     ?_test2(test_handler_check)]
+     ?_test2(test_handler_check),
+     ?_test2(test_sending_message_while_handler_check)]
   }.
 
 
@@ -76,3 +77,17 @@ test_handler_check(_) ->
    ?assertEqual(handler_check, CheckState),
    ?assertEqual(connected, FinalState)].
 
+
+test_sending_message_while_handler_check(_) ->
+  Handler = #socket_io_handler{module = ?HANDLER_MODULE,
+                               sessionId = ?SID},
+  socket_io_erl_connection:set_handler(Handler),
+  timer:sleep(2050),
+  N = 4,
+  Messages = [#socket_io_msg{type = ?SOCKET_IO_MSG_EVENT,
+                             data = <<"{}">>,
+                             id = INDEX} || INDEX <- lists:seq(1, N)],
+  [socket_io_erl_connection:send_msg(?SID, Msg) || Msg <- Messages],
+  socket_io_erl_connection:confirm_handler_check(?SID),
+  timer:sleep(100),
+  ?assert(meck:called(?HANDLER_MODULE, send, [?SID, Messages])).
