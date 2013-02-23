@@ -25,7 +25,10 @@ all_test_() ->
     ?_ut(test_encoding)
   ]}.
 
-%% Tests decoding
+%%%============================================================================
+%%% Tests
+%%%============================================================================
+
 test_decoding(_) ->
   [
     ?assertEqual(#socket_io_msg{type = ?SOCKET_IO_MSG_CONNECT},

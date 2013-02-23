@@ -13,7 +13,8 @@
          unset_handler/1,
          send_msg/2,
          confirm_handler_check/1,
-         migrate/2]).
+         migrate/2,
+         get_state/1]).
 
 %% gen_fsm callbacks
 -export([init/1,
@@ -25,6 +26,20 @@
          handle_info/3,
          terminate/3,
          code_change/4]).
+
+%%%============================================================================
+%%% Types
+%%%============================================================================
+
+-type conn_state() :: connected |
+                      disconnected |
+                      handler_check.
+
+-export_type([conn_state/0]).
+
+%%%============================================================================
+%%% Definitions
+%%%============================================================================
 
 %% Time to wait for connection from client
 %% After this time connection dies
@@ -38,7 +53,6 @@
 -define(HANDLER_CHECK_TIMEOUT, 500).
 
 
-%% Types
 -record(state, {handler :: pid(),
                 lastMsgId :: integer(),
                 messages :: list(),
@@ -49,14 +63,16 @@
 %%% API
 %%%============================================================================
 
-%% @hidden
+%% @doc starts connection
 -spec start_link(SessionId :: binary()) -> any().
 start_link(SessionId) ->
-  gen_fsm:start_link({global, {?MODULE, SessionId}}, ?MODULE,
-    [{sessionId, SessionId}], []).
+  gen_fsm:start_link({global, {?MODULE, SessionId}},
+                     ?MODULE,
+                     [{sessionId, SessionId}],
+                     []).
 
 %% @doc start new connection
--spec new(SessionId :: binary()) -> ok.
+-spec new(SessionId::binary()) -> ok.
 new(SessionId) ->
   socket_io_erl_connection_sup:start_connection(SessionId).
 
@@ -67,25 +83,30 @@ set_handler(Handler = #socket_io_handler{sessionId = SessionId}) ->
 
 %% @doc detaches handler from connection. Connection will be switched to
 %% disconnected state
--spec unset_handler(SessionId :: binary()) -> ok.
+-spec unset_handler(SessionId::binary()) -> ok.
 unset_handler(SessionId) ->
   gen_fsm:send_event({global, {?MODULE, SessionId}}, detach_handler).
 
 %% @doc sends message to client. Message is #socket_io_msg{} record
--spec send_msg(SessionId :: binary(), Msg :: #socket_io_msg{}) -> ok.
+-spec send_msg(SessionId::binary(), Msg::#socket_io_msg{}) -> ok.
 send_msg(SessionId, Msg) ->
   gen_fsm:send_event({global, {?MODULE, SessionId}}, {send, Msg}).
 
 %% @doc confirms success of handler check. Should be sent by handle in response
 %% to check request
--spec confirm_handler_check(SessionId :: binary()) -> ok.
+-spec confirm_handler_check(SessionId::binary()) -> ok.
 confirm_handler_check(SessionId) ->
   gen_fsm:send_event({global, {?MODULE, SessionId}}, check_ok).
 
 %% @doc starts migration of connection to different node (Destination)
--spec migrate(SessionId :: binary(), Destination :: term()) -> ok.
+-spec migrate(SessionId::binary(), Destination::term()) -> ok.
 migrate(SessionId, Destination) ->
   gen_fsm:send_event({global, {?MODULE, SessionId}}, {migrate, Destination}).
+
+%% @doc returns actual connection state
+-spec get_state(SessionId::binary()) -> conn_state().
+get_state(SessionId) ->
+  gen_fsm:sync_send_all_state_event({global, {?MODULE, SessionId}}, get_state).
 
 %%%============================================================================
 %%% gen_fsm callbacks
@@ -115,7 +136,8 @@ disconnected({send, Msg}, State0) ->
 disconnected({attach_handler, Handler}, State0) ->
   %% Attach handler to current connection
   timer:cancel(State0#state.selfDestructionTimer),
-  HandlerCheckTimer = gen_fsm:start_timer(?HANDLER_CHECK_INTERVAL, check_handler),
+  HandlerCheckTimer = gen_fsm:send_event_after(?HANDLER_CHECK_INTERVAL,
+                                               check_handler),
   State1 = State0#state{handler = Handler,
                         selfDestructionTimer = undefined,
                         handlerCheckTimer = HandlerCheckTimer},
@@ -129,9 +151,11 @@ disconnected(_Event, State) ->
 
 connected(check_handler, State0) ->
   %% Request handler check
+
   Handler = State0#state.handler,
   HandlerModule = Handler#socket_io_handler.module,
-  HandlerModule:check(Handler),
+  erlang:display("send check to handler"),erlang:display(Handler),
+  ok = erlang:apply(HandlerModule, check, [Handler]),
   {next_state, handler_check, State0, ?HANDLER_CHECK_TIMEOUT};
 connected({send, Msg}, State0) ->
   %% Send single message to handler
@@ -144,8 +168,8 @@ connected(detach_handler, State0) ->
   %% Detach handler and go to disconnected state
   State1 = detach_handler(State0),
   {next_state, disconnected, State1, ?CONNECT_TIMEOUT};
-connected(_Event, State) ->
-  {next_state, connected, State}.
+connected(Event, _State) ->
+  erlang:exit({unsupported, Event}).
 
 handler_check(timeout, State0) ->
   %% Handler check failed - set connection disconnected
@@ -153,6 +177,7 @@ handler_check(timeout, State0) ->
   {next_state, disconnected, State1};
 handler_check(check_ok, State0) ->
   %% Send accumulated messages and go to connected state
+  gen_fsm:send_event_after(?HANDLER_CHECK_INTERVAL, check_handler),
   {next_state, connected, State0};
 handler_check({send, Msg}, State0) ->
   %% Accumulate messages to send in future
@@ -165,6 +190,8 @@ handler_check(_Event, State) ->
 handle_event(_Event, StateName, State) ->
   {next_state, StateName, State}.
 
+handle_sync_event(get_state, _From, StateName, State) ->
+  {reply, StateName, StateName, State};
 handle_sync_event(_Event, _From, StateName, State) ->
   {reply, ok, StateName, State}.
 

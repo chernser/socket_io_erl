@@ -21,15 +21,13 @@ start_link() ->
 %% @doc starts new socket.io connection as supervisor child
 -spec start_connection(SessionId::binary()) -> ok.
 start_connection(SessionId) ->
-  {ok, _} = supervisor:start_child({
-    {socket_io_erl_connection, SessionId},
-    {socket_io_erl_connection, start_link, [SessionId]},
-    permanent, 5000, worker, dynamic
-  }),
-  ok.
+  supervisor:start_child(?MODULE,
+                         {{socket_io_erl_connection, SessionId},
+                          {socket_io_erl_connection, start_link, [SessionId]},
+                          permanent, 5000, worker, []}).
 
 %%%============================================================================
 %% supervisor callbacks
 %%%============================================================================
 init([]) ->
-  {ok, {{simple_one_for_one, 5, 10}, []}}.
+  {ok, {{one_for_one, 5, 10}, []}}.

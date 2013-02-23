@@ -12,18 +12,13 @@
 -define(SOCKET_IO_MSG_NOOP, <<"8">>).
 
 %% @doc Holding parsed socket.io message
--record(socket_io_msg, {
-  type,
-  id,
-  endpoint,
-  data
-}).
-
+-record(socket_io_msg, {type,
+                        id,
+                        endpoint,
+                        data}).
 
 %% @doc describes handler
--record(socket_io_handler, {
-  sessionId,
-  type,
-  module,
-  ref
-}).
+-record(socket_io_handler, {sessionId,
+                            type,
+                            module,
+                            ref}).
