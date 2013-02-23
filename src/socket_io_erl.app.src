@@ -1,12 +1,8 @@
 {application, socket_io_erl,
- [
-  {description, ""},
-  {vsn, "1"},
+ [{description, "Socket.io backend"},
+  {vsn, "0.1"},
   {registered, []},
-  {applications, [
-                  kernel,
-                  stdlib
-                 ]},
+  {applications, [kernel,
+                  stdlib]},
   {mod, { socket_io_erl_app, []}},
-  {env, []}
- ]}.
+  {env, []}]}.

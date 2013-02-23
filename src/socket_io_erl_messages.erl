@@ -6,37 +6,32 @@
 %% @end
 
 -module(socket_io_erl_messages).
--author("chernser@outlook.com").
 
 %% @headerfile "socket_io_erl.hrl"
--include("../include/socket_io_erl.hrl").
+-include_lib("socket_io_erl/include/socket_io_erl.hrl").
 
 %% API
--export([
-  decode/1,
-  encode/1,
-  getEventName/1,
-  getEventArgs/1
-]).
+-export([decode/1,
+         encode/1,
+         getEventName/1,
+         getEventArgs/1]).
 
+%%%============================================================================
+%%% API
+%%%============================================================================
 
-%% @doc
-%%  Decodes message into record
-%% @end
+%% @doc Decodes message into record
 -spec decode(binary() | list()) -> #socket_io_msg{}.
 decode(Msg) when is_list(Msg) ->
   decode(list_to_binary(Msg));
 decode(Msg) when is_binary(Msg) ->
-  Parts = [ (case Part of
-              <<>> -> undefined;
-              _ -> Part
-             end) || Part <- re:split(Msg, <<":">>, [{return, binary}])],
+  Parts = [ case Part of
+                <<>> -> undefined;
+                _ -> Part
+            end || Part <- re:split(Msg, <<":">>, [{return, binary}])],
   parse(Parts).
 
-
-%% @doc
-%%  Encodes message record into binary()
-%% @end
+%% @doc Encodes message record into binary()
 %% @todo optimize
 -spec encode(#socket_io_msg{}) -> binary().
 encode(Msg) ->
@@ -47,18 +42,15 @@ encode(Msg) ->
                      end)/bitstring,
                       ":" >> || P <- Parts>>,
   Size = size(Encoded),
-  if (Msg#socket_io_msg.data =:= undefined) -> binary:part(Encoded, 0, Size - 2);
-     true -> binary:part(Encoded, 0, Size - 1)
+  case Msg#socket_io_msg.data of
+     undefined ->
+       binary:part(Encoded, 0, Size - 2);
+     _ ->
+       binary:part(Encoded, 0, Size - 1)
   end.
 
-
-%% @doc
-%%   Returns event name if message is event
-%% @return binary() - event name
-%% @return undefined - if no name field found
-%% @return not_event - if message is not event
-%% @end
--spec getEventName(#socket_io_msg{data :: list()}) -> binary().
+%% @doc Returns event name if message is event
+-spec getEventName(#socket_io_msg{data::list()}) -> binary().
 getEventName(#socket_io_msg{type = ?SOCKET_IO_MSG_EVENT, data = undefined}) ->
    undefined;
 getEventName(#socket_io_msg{type = ?SOCKET_IO_MSG_EVENT, data = Data}) ->
@@ -66,22 +58,14 @@ getEventName(#socket_io_msg{type = ?SOCKET_IO_MSG_EVENT, data = Data}) ->
 getEventName(_) ->
     not_event.
 
-
-%% @doc
-%%   Returns event arguments if message is event
-%% @return [term()] - event arguments
-%% @return undefined - if no args field found
-%% @return not_event - if message is not event
-%% @end
--spec getEventArgs(#socket_io_msg{data :: list()}) -> binary().
+%% @doc Returns event arguments if message is event
+-spec getEventArgs(#socket_io_msg{data::list()}) -> binary().
 getEventArgs(#socket_io_msg{type = ?SOCKET_IO_MSG_EVENT, data = undefined}) ->
   undefined;
 getEventArgs(#socket_io_msg{type = ?SOCKET_IO_MSG_EVENT, data = Data}) ->
     proplists:get_value(<<"args">>, Data);
 getEventArgs(_) ->
     not_event.
-
-
 
 %% @doc Parses list of message parts into record
 -spec parse([binary()]) -> #socket_io_msg{}.
@@ -91,5 +75,3 @@ parse([Type, Id, Endpoint]) ->
   #socket_io_msg{type = Type, id = Id, endpoint = Endpoint};
 parse([Type, Id, Endpoint, Data]) ->
   #socket_io_msg{type = Type, id = Id, endpoint = Endpoint, data = Data}.
-
-

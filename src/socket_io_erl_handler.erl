@@ -5,7 +5,6 @@
 %% Behaviour API
 -export([behaviour_info/1]).
 
-
 %% @hidden
 behaviour_info(callbacks) ->
   [{check, 1}, {terminate, 1}, {send,2}];
